@@ -1,0 +1,14 @@
+
+Debug/makefile
+
+.project
+
+.cproject
+
+*.mk
+
+Debug/PG-Proj1
+
+*.d
+
+*.o
