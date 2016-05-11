@@ -9,75 +9,77 @@ const int WINDOW_W = 500;
 const int WINDOW_H = 500;
 
 std::vector <Ponto> pontos;
+std::vector <Ponto> pontos_;
 std::vector <Ponto> primeiraDerivada;;
 std::vector <Ponto> segundaDerivada;
+std::vector <Ponto> normals;
 bool bezier = false;
 
 void drawPoints();
 void drawLines(const std::vector<Ponto>& pontos);
-void drawBezierCurve(const std::vector<Ponto>& pontos);
-void orthogonalization(Ponto u, Ponto v, Ponto& w);
+void drawDeCasteljau(const std::vector<Ponto>& pontos);
+void drawNormals();
+
+//Ponto deCasteljau(const std::vector<Ponto> pontos, int n, int i, float t);
+Ponto deCasteljau(const std::vector<Ponto> pontos, float t);
+Ponto orthogonalization(Ponto u, Ponto v);
 std::vector<Ponto> getDerivativeControllers(const std::vector<Ponto> u);
+std::vector<Ponto> vectorsNorm(std::vector<Ponto> ps);
+double norm(Ponto p);
 
 void display()
 {
 	glClear(GL_COLOR_BUFFER_BIT);
 	drawPoints();
-
-	pontos.push_back(Ponto(100.0f,5.0f));
-	pontos.push_back(Ponto(200.0f,150.0f));
-	pontos.push_back(Ponto(10.0f,300.0f));
-	pontos.push_back(Ponto(190.0f,125.0f));
+/*
+	pontos.push_back(Ponto(1.0f,-1.0f));
+	pontos.push_back(Ponto(2.0f,1.0f));
+	pontos.push_back(Ponto(0.0f,3.0f));
+	pontos.push_back(Ponto(-1.0f,1.0f));
 
 	drawLines(pontos);
 
 	primeiraDerivada = getDerivativeControllers(pontos);
-	segundaDerivada = getDerivativeControllers(primeiraDerivada);
+	Ponto p = deCasteljau(primeiraDerivada, 0.5f);
 
-	Ponto p(0,0);
-	MathUtil::bezier(pontos, 0.5f, p);
+	//std::cout << "(" << u.x << "," << u .y << ")\n";
+
+	for (auto p : primeiraDerivada) {
+		std::cout << "primeira derivada(" << p.x << "," << p.y << ")\n";
+	}
+	std::vector<Ponto> pd = vectorsNorm(primeiraDerivada);
+	for (auto p : pd) {
+		std::cout << "pd(" << p.x << "," << p.y << ")\n";
+	}
+
+	segundaDerivada = getDerivativeControllers(primeiraDerivada);
+	std::vector<Ponto> sd = vectorsNorm(segundaDerivada);
+
+	//Ponto p(0,0);
+	//MathUtil::bezier(pontos, 0.5f, p);
+	Ponto p = deCasteljau(pontos, 0.5f);
 	std::cout << "(" << p.x << "," << p.y << ")\n";
 
-	Ponto u(0,0);
-	MathUtil::bezier(primeiraDerivada, 0.5f, u);
+	//Ponto u(0,0);
+	//MathUtil::bezier(primeiraDerivada, 0.5f, u);
+	Ponto u = deCasteljau(pd, 0.5f);
 	std::cout << "pd(" << u.x << "," << u.y << ")\n";
 
-	Ponto v(0,0);
-	MathUtil::bezier(segundaDerivada, 0.5f, v);
+	//Ponto v(0,0);
+	//MathUtil::bezier(segundaDerivada, 0.5f, v);
+	Ponto v = deCasteljau(sd, 0.5f);
 	std::cout << "sd(" << v.x << "," << v.y << ")\n";
 
 	Ponto w(0,0);
 	orthogonalization(u,v,w);
 	std::cout << "ortho(" << w.x << "," << w.y << ")\n";
-
-
-	if(pontos.size() > 1) {
-
-		drawLines(pontos);
-		if(bezier) drawBezierCurve(pontos);
-/*
-		primeiraDerivada = getDerivativeControllers(pontos);
-		segundaDerivada = getDerivativeControllers(primeiraDerivada);
-
-		for(auto p : pontos)
-			std::cout << "(" << p.x << "," << p.y << ")\n";
-
-		Ponto p(0,0);
-		MathUtil::bezier(pontos, 0.5f, p);
-		std::cout << "bz(" << p.x << "," << p.y << ")\n";
-
-		Ponto u(0,0);
-		MathUtil::bezier(primeiraDerivada, 0.5f, u);
-		std::cout << "pd(" << u.x << "," << u.y << ")\n";
-
-		Ponto v(0,0);
-		MathUtil::bezier(segundaDerivada, 0.5f, v);
-		std::cout << "sd(" << v.x << "," << v.y << ")\n";
-
-		Ponto w(0,0);
-		orthogonalization(u,v,w);
-		std::cout << "ortho(" << w.x << "," << w.y << ")\n";
 */
+
+	if(pontos.size() > 1)
+	{
+		drawLines(pontos);
+		if(bezier) drawDeCasteljau(pontos);
+		//if(bezier) drawBezierCurve(pontos);
 	}
 	glFlush();
 }
@@ -101,18 +103,67 @@ void drawLines(const std::vector<Ponto>& pontos)
 	glEnd();
 }
 
-void drawBezierCurve(const std::vector<Ponto>& pontos)
+void drawNormals()
+{
+	primeiraDerivada = getDerivativeControllers(pontos);
+	segundaDerivada = getDerivativeControllers(primeiraDerivada);
+
+	Ponto pd(0,0);
+	Ponto sd(0,0);
+	Ponto orth(0,0);
+	float t = 0.5f;
+
+	if(pontos.size() > 2) {
+		for (float t = 0.0f; t < 1.0f; t += 0.001f) {
+			pd = deCasteljau(primeiraDerivada, t);
+			sd = deCasteljau(segundaDerivada, t);
+			orth = orthogonalization(pd, sd);
+			normals.push_back(Ponto(pontos_[t].x + orth.x, pontos_[t].y + orth.y));
+		}
+
+		drawLines(normals);
+	}
+}
+
+Ponto deCasteljau(const std::vector<Ponto> pontos, float t)
+{
+	std::vector<Ponto> p = pontos;
+
+	for (int n = 0; n < pontos.size()-1; ++n) {
+		for (int b = 0; b < pontos.size()-1 - n; ++b) {
+			p[b].x = (1-t) * p[b].x + t * p[b+1].x;
+			p[b].y = (1-t) * p[b].y + t * p[b+1].y;
+		}
+	}
+	return p[0];
+}
+
+void drawDeCasteljau(const std::vector<Ponto>& pontos)
 {
 	glBegin(GL_LINE_STRIP);
 	glColor3f(1.0f, 1.0f, 0.0f);
-	Ponto p(0,0);
-	for (float t = 0.0f; t < 1.0f; t += 0.01f) {
-		MathUtil::bezier(pontos, t, p);
+	for (float t = 0.0f; t < 1.0f; t += 0.001f) {
+		//Ponto p = deCasteljau(pontos, pontos.size()-1, 0, t);
+		Ponto p = deCasteljau(pontos, t);
+		pontos_.push_back(p);
 		glVertex2d(p.x,p.y);
 	}
 	glEnd();
+
+	drawNormals();
 }
 
+/*
+Ponto deCasteljau(const std::vector<Ponto> pontos, int n, int i, float t)
+	if(n==0) return pontos[i];
+
+	Ponto p1 = deCasteljau(pontos, n-1, i, t);
+	Ponto p2 = deCasteljau(pontos, n-1, i+1, t);
+
+	return Ponto((1-t) * p1.x + t * p2.x, (1-t) * p1.y + t * p2.y);
+*/
+
+// Guarda os pontos de controle da derivada
 std::vector<Ponto> getDerivativeControllers(const std::vector<Ponto> u)
 {
 	std::vector<Ponto> v;
@@ -126,10 +177,31 @@ float scalarProduct(Ponto u, Ponto v)
 	return (u.x * v.x + u.y * v.y);
 }
 
-void orthogonalization(Ponto u, Ponto v, Ponto& w)
+// Norma de um vetor
+double norm(Ponto p)
 {
+	return sqrt(scalarProduct(p,p));
+}
+
+// Norma para um conj de vetores
+std::vector<Ponto> vectorsNorm(std::vector<Ponto> ps)
+{
+	std::vector<Ponto> vectorsNorm_;
+	for(auto p : ps)
+		vectorsNorm_.push_back(Ponto(p.x/norm(p), p.y/norm(p)));
+	return vectorsNorm_;
+}
+
+Ponto orthogonalization(Ponto u, Ponto v)
+{
+	Ponto w(0,0);
+
+	//if(u == w) return w;
+
 	w.x = v.x - (scalarProduct(u,v)/scalarProduct(u,u)) * u.x;
 	w.y = v.y - (scalarProduct(u,v)/scalarProduct(u,u)) * u.y;
+
+	return Ponto(w.x, w.y);
 }
 
 void reshape(int w, int h)
@@ -157,7 +229,7 @@ void handleKeypress(unsigned char key, int x, int y)
 
 void handleMouseClick(int button, int state, int x, int y)
 {
-    if (button == GLUT_LEFT_BUTTON)
+    if(button == GLUT_LEFT_BUTTON)
         if (state == GLUT_DOWN) {
             pontos.push_back(Ponto(x, y));
             std::cout << "(" << x << "," << y << ")\n";
