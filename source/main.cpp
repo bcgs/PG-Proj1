@@ -10,13 +10,14 @@ const int WINDOW_H = 500;
 
 std::vector <Ponto> pontos;
 std::vector <Ponto> pontos_;
-std::vector <Ponto> primeiraDerivada;;
+std::vector <Ponto> primeiraDerivada;
+std::vector <Ponto> primeiraDerivada_;
 std::vector <Ponto> segundaDerivada;
-std::vector <Ponto> normals;
+std::vector <Ponto> segundaDerivada_;
 bool bezier = false;
 
 void drawPoints();
-void drawLines(const std::vector<Ponto>& pontos);
+void drawLines(const std::vector<Ponto>& pontos, float r, float g, float b);
 void drawDeCasteljau(const std::vector<Ponto>& pontos);
 void drawNormals();
 
@@ -26,6 +27,7 @@ Ponto orthogonalization(Ponto u, Ponto v);
 std::vector<Ponto> getDerivativeControllers(const std::vector<Ponto> u);
 std::vector<Ponto> vectorsNorm(std::vector<Ponto> ps);
 double norm(Ponto p);
+Ponto* drawArrow(Ponto p);
 
 void display()
 {
@@ -77,7 +79,7 @@ void display()
 
 	if(pontos.size() > 1)
 	{
-		drawLines(pontos);
+		drawLines(pontos, 0.0f, 1.0f, 1.0f);
 		if(bezier) drawDeCasteljau(pontos);
 		//if(bezier) drawBezierCurve(pontos);
 	}
@@ -94,35 +96,56 @@ void drawPoints()
 	glEnd();
 }
 
-void drawLines(const std::vector<Ponto>& pontos)
+void drawLines(const std::vector<Ponto>& pontos, float r, float g, float b)
 {
 	glBegin(GL_LINE_STRIP);
-	glColor3f(0.0f, 1.0f, 1.0f);
+	glColor3f(r, g, b);
 	for(auto p : pontos)
 		glVertex2d(p.x, p.y);
 	glEnd();
 }
 
+Ponto* drawArrow(Ponto p)
+{
+	Ponto arrow[2] = {Ponto(0,0),Ponto(0,0)};
+
+
+
+	return arrow;
+}
+
 void drawNormals()
 {
+	std::vector <Ponto> normals;
+
 	primeiraDerivada = getDerivativeControllers(pontos);
-	segundaDerivada = getDerivativeControllers(primeiraDerivada);
+	if(pontos.size() > 2)
+		segundaDerivada = getDerivativeControllers(primeiraDerivada);
+	else
+		segundaDerivada.push_back(Ponto(0,0));
 
 	Ponto pd(0,0);
 	Ponto sd(0,0);
 	Ponto orth(0,0);
+	Ponto test(0,0);
+
 	float t = 0.5f;
 
-	if(pontos.size() > 2) {
-		for (float t = 0.0f; t < 1.0f; t += 0.001f) {
-			pd = deCasteljau(primeiraDerivada, t);
-			sd = deCasteljau(segundaDerivada, t);
-			orth = orthogonalization(pd, sd);
-			normals.push_back(Ponto(pontos_[t].x + orth.x, pontos_[t].y + orth.y));
-		}
+	pd = deCasteljau(primeiraDerivada, t);
+	sd = deCasteljau(segundaDerivada, t);
+	orth = orthogonalization(pd, sd);
 
-		drawLines(normals);
-	}
+	orth = Ponto(orth.x/norm(orth)*50, orth.y/norm(orth)*50);	// Vetores com tamanho entre [0..1]
+
+	//Ponto *arrow = drawArrow(orth);
+
+	test = deCasteljau(pontos, t);
+	normals.push_back(test);
+
+	test = Ponto(test.x + orth.x, test.y + orth.y);
+	normals.push_back(test);
+	drawLines(normals, 0.5f, 0.0f, 0.5f);
+
 }
 
 Ponto deCasteljau(const std::vector<Ponto> pontos, float t)
@@ -143,7 +166,6 @@ void drawDeCasteljau(const std::vector<Ponto>& pontos)
 	glBegin(GL_LINE_STRIP);
 	glColor3f(1.0f, 1.0f, 0.0f);
 	for (float t = 0.0f; t < 1.0f; t += 0.001f) {
-		//Ponto p = deCasteljau(pontos, pontos.size()-1, 0, t);
 		Ponto p = deCasteljau(pontos, t);
 		pontos_.push_back(p);
 		glVertex2d(p.x,p.y);
