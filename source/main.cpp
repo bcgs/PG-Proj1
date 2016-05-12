@@ -9,25 +9,24 @@ const int WINDOW_W = 500;
 const int WINDOW_H = 500;
 
 std::vector <Ponto> pontos;
-std::vector <Ponto> pontos_;
 std::vector <Ponto> primeiraDerivada;
-std::vector <Ponto> primeiraDerivada_;
 std::vector <Ponto> segundaDerivada;
-std::vector <Ponto> segundaDerivada_;
 bool bezier = false;
+float aval;
 
 void drawPoints();
 void drawLines(const std::vector<Ponto>& pontos, float r, float g, float b);
+void drawLine(Ponto a, Ponto b);
 void drawDeCasteljau(const std::vector<Ponto>& pontos);
-void drawNormals();
+void drawNormals(std::vector<Ponto> pontos_);
 
 //Ponto deCasteljau(const std::vector<Ponto> pontos, int n, int i, float t);
-Ponto deCasteljau(const std::vector<Ponto> pontos, float t);
+Ponto deCasteljau(const std::vector<Ponto> pontos, double t);
 Ponto orthogonalization(Ponto u, Ponto v);
 std::vector<Ponto> getDerivativeControllers(const std::vector<Ponto> u);
 std::vector<Ponto> vectorsNorm(std::vector<Ponto> ps);
 double norm(Ponto p);
-Ponto* drawArrow(Ponto p);
+Ponto* drawArrow(std::vector<Ponto> p);
 
 void display()
 {
@@ -105,6 +104,15 @@ void drawLines(const std::vector<Ponto>& pontos, float r, float g, float b)
 	glEnd();
 }
 
+void drawLine(Ponto a_, Ponto b_)
+{
+	glBegin(GL_LINE_STRIP);
+	glColor3f(0.5f, 0.0f, 0.5f);
+	glVertex2d(a_.x, a_.y);
+	glVertex2d(b_.x, b_.y);
+	glEnd();
+}
+
 Ponto* drawArrow(Ponto p)
 {
 	Ponto arrow[2] = {Ponto(0,0),Ponto(0,0)};
@@ -114,10 +122,8 @@ Ponto* drawArrow(Ponto p)
 	return arrow;
 }
 
-void drawNormals()
+void drawNormals(std::vector<Ponto> pontos_)
 {
-	std::vector <Ponto> normals;
-
 	primeiraDerivada = getDerivativeControllers(pontos);
 	if(pontos.size() > 2)
 		segundaDerivada = getDerivativeControllers(primeiraDerivada);
@@ -127,28 +133,23 @@ void drawNormals()
 	Ponto pd(0,0);
 	Ponto sd(0,0);
 	Ponto orth(0,0);
-	Ponto test(0,0);
 
-	float t = 0.5f;
+	for (double t = 0; t < 1; t += 1/aval) {
+		pd = deCasteljau(primeiraDerivada, t);
+		sd = deCasteljau(segundaDerivada, t);
+		orth = orthogonalization(pd, sd);
+		orth = Ponto((orth.x/norm(orth))*50, (orth.y/norm(orth))*50);	// Vetores com tamanho entre [0..1]
 
-	pd = deCasteljau(primeiraDerivada, t);
-	sd = deCasteljau(segundaDerivada, t);
-	orth = orthogonalization(pd, sd);
+		std::cout << "Ponto("<< pontos_[t*aval].x << "," << pontos_[t*aval].y << ")\n";
 
-	orth = Ponto(orth.x/norm(orth)*50, orth.y/norm(orth)*50);	// Vetores com tamanho entre [0..1]
-
-	//Ponto *arrow = drawArrow(orth);
-
-	test = deCasteljau(pontos, t);
-	normals.push_back(test);
-
-	test = Ponto(test.x + orth.x, test.y + orth.y);
-	normals.push_back(test);
-	drawLines(normals, 0.5f, 0.0f, 0.5f);
+		drawLine(pontos_[t*aval], Ponto(pontos_[t*aval].x + orth.x, pontos_[t*aval].y + orth.y));
+	}
+	std::cout << "-----------\n";
+	//drawLine(pontos_.back(), Ponto(pontos_.back().x + orth.x, pontos_.back().y + orth.y), 0.5f, 0.0f, 0.5f);
 
 }
 
-Ponto deCasteljau(const std::vector<Ponto> pontos, float t)
+Ponto deCasteljau(const std::vector<Ponto> pontos, double t)
 {
 	std::vector<Ponto> p = pontos;
 
@@ -163,16 +164,18 @@ Ponto deCasteljau(const std::vector<Ponto> pontos, float t)
 
 void drawDeCasteljau(const std::vector<Ponto>& pontos)
 {
+	std::vector <Ponto> pontos_;
+
 	glBegin(GL_LINE_STRIP);
 	glColor3f(1.0f, 1.0f, 0.0f);
-	for (float t = 0.0f; t < 1.0f; t += 0.001f) {
+	for (double t = 0; t < 1; t += 1/aval) {
 		Ponto p = deCasteljau(pontos, t);
 		pontos_.push_back(p);
 		glVertex2d(p.x,p.y);
 	}
+	glVertex2d(pontos.back().x, pontos.back().y);
 	glEnd();
-
-	drawNormals();
+	drawNormals(pontos_);
 }
 
 /*
@@ -218,12 +221,12 @@ Ponto orthogonalization(Ponto u, Ponto v)
 {
 	Ponto w(0,0);
 
-	//if(u == w) return w;
+	if(scalarProduct(u,u) == 0) return w;
 
 	w.x = v.x - (scalarProduct(u,v)/scalarProduct(u,u)) * u.x;
 	w.y = v.y - (scalarProduct(u,v)/scalarProduct(u,u)) * u.y;
 
-	return Ponto(w.x, w.y);
+	return w;
 }
 
 void reshape(int w, int h)
@@ -254,13 +257,16 @@ void handleMouseClick(int button, int state, int x, int y)
     if(button == GLUT_LEFT_BUTTON)
         if (state == GLUT_DOWN) {
             pontos.push_back(Ponto(x, y));
-            std::cout << "(" << x << "," << y << ")\n";
+            //std::cout << "(" << x << "," << y << ")\n";
         }
     glutPostRedisplay();
 }
 
 int main(int argc, char ** argv)
 {
+	std::cout << "Enter number of avaliations\n";
+	std::cin >> aval;
+
     glutInit(&argc, argv);
     glutInitWindowPosition(0,0); // upper left
     glutInitWindowSize(WINDOW_W, WINDOW_H);
