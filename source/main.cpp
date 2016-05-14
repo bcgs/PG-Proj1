@@ -1,101 +1,72 @@
+/*
+---------------------------------------------
+Controllers:
+
+-Mouse:
+	'left click': Creates control point
+-Keyboard:
+	'b': Draws bezier curve
+	'n': Draws normal vectors on a Bezier curve
+	'ESC': Exits program
+---------------------------------------------
+ */
+
 #include <iostream>
 #include <OpenGL/gl.h>
 #include <GLUT/GLUT.h>
 #include <vector>
-#include "ponto.h"
-#include "mathutil.h"
+#include "math.h"
+#include "point.h"
 
-const int WINDOW_W = 500;
-const int WINDOW_H = 500;
+const int WINDOW_W = 700;
+const int WINDOW_H = 700;
 
-std::vector <Ponto> pontos;
-std::vector <Ponto> primeiraDerivada;
-std::vector <Ponto> segundaDerivada;
+std::vector <Point> controlPoints;
+std::vector <Point> pointsOnBezier;
+std::vector <Point> firstDerivative;
+std::vector <Point> secondDerivative;
 bool bezier = false;
-float aval;
+bool normal = false;
+float eval;
 
-void drawPoints();
-void drawLines(const std::vector<Ponto>& pontos, float r, float g, float b);
-void drawLine(Ponto a, Ponto b);
-void drawDeCasteljau(const std::vector<Ponto>& pontos);
-void drawNormals(std::vector<Ponto> pontos_);
+void drawsPoint();
+void drawsLines(const std::vector<Point>& pontos, float r, float g, float b);
+void drawsLine(Point a, Point b);
+void drawsBezierCurve(const std::vector<Point>& pontos);
+void drawsNormals();
+Point deCasteljau(const std::vector<Point> pontos, double t);
+Point orthogonalization(Point u, Point v);
+std::vector<Point> getDerivativeControllers(const std::vector<Point> u);
+double norm(Point p);
 
-//Ponto deCasteljau(const std::vector<Ponto> pontos, int n, int i, float t);
-Ponto deCasteljau(const std::vector<Ponto> pontos, double t);
-Ponto orthogonalization(Ponto u, Ponto v);
-std::vector<Ponto> getDerivativeControllers(const std::vector<Ponto> u);
-std::vector<Ponto> vectorsNorm(std::vector<Ponto> ps);
-double norm(Ponto p);
-Ponto* drawArrow(std::vector<Ponto> p);
 
 void display()
 {
 	glClear(GL_COLOR_BUFFER_BIT);
-	drawPoints();
-/*
-	pontos.push_back(Ponto(1.0f,-1.0f));
-	pontos.push_back(Ponto(2.0f,1.0f));
-	pontos.push_back(Ponto(0.0f,3.0f));
-	pontos.push_back(Ponto(-1.0f,1.0f));
+	drawsPoint();
 
-	drawLines(pontos);
-
-	primeiraDerivada = getDerivativeControllers(pontos);
-	Ponto p = deCasteljau(primeiraDerivada, 0.5f);
-
-	//std::cout << "(" << u.x << "," << u .y << ")\n";
-
-	for (auto p : primeiraDerivada) {
-		std::cout << "primeira derivada(" << p.x << "," << p.y << ")\n";
-	}
-	std::vector<Ponto> pd = vectorsNorm(primeiraDerivada);
-	for (auto p : pd) {
-		std::cout << "pd(" << p.x << "," << p.y << ")\n";
-	}
-
-	segundaDerivada = getDerivativeControllers(primeiraDerivada);
-	std::vector<Ponto> sd = vectorsNorm(segundaDerivada);
-
-	//Ponto p(0,0);
-	//MathUtil::bezier(pontos, 0.5f, p);
-	Ponto p = deCasteljau(pontos, 0.5f);
-	std::cout << "(" << p.x << "," << p.y << ")\n";
-
-	//Ponto u(0,0);
-	//MathUtil::bezier(primeiraDerivada, 0.5f, u);
-	Ponto u = deCasteljau(pd, 0.5f);
-	std::cout << "pd(" << u.x << "," << u.y << ")\n";
-
-	//Ponto v(0,0);
-	//MathUtil::bezier(segundaDerivada, 0.5f, v);
-	Ponto v = deCasteljau(sd, 0.5f);
-	std::cout << "sd(" << v.x << "," << v.y << ")\n";
-
-	Ponto w(0,0);
-	orthogonalization(u,v,w);
-	std::cout << "ortho(" << w.x << "," << w.y << ")\n";
-*/
-
-	if(pontos.size() > 1)
+	if(controlPoints.size() > 1)
 	{
-		drawLines(pontos, 0.0f, 1.0f, 1.0f);
-		if(bezier) drawDeCasteljau(pontos);
-		//if(bezier) drawBezierCurve(pontos);
+		drawsLines(controlPoints, 0.0f, 1.0f, 1.0f);
+		if(bezier) drawsBezierCurve(controlPoints);
+		if(bezier && normal) drawsNormals();
 	}
 	glFlush();
 }
 
-void drawPoints()
+/* Draws a control point */
+void drawsPoint()
 {
 	glPointSize(5.0f);
 	glBegin(GL_POINTS);
 	glColor3f(1.0f, 0.0f, 0.0f);
-	for(auto p : pontos)
+	for(auto p : controlPoints)
 		glVertex2d(p.x, p.y);
 	glEnd();
 }
 
-void drawLines(const std::vector<Ponto>& pontos, float r, float g, float b)
+/* Draws an array of lines */
+void drawsLines(const std::vector<Point>& pontos, float r, float g, float b)
 {
 	glBegin(GL_LINE_STRIP);
 	glColor3f(r, g, b);
@@ -104,7 +75,8 @@ void drawLines(const std::vector<Ponto>& pontos, float r, float g, float b)
 	glEnd();
 }
 
-void drawLine(Ponto a_, Ponto b_)
+/* Draws a single line */
+void drawsLine(Point a_, Point b_)
 {
 	glBegin(GL_LINE_STRIP);
 	glColor3f(0.5f, 0.0f, 0.5f);
@@ -113,45 +85,40 @@ void drawLine(Ponto a_, Ponto b_)
 	glEnd();
 }
 
-Ponto* drawArrow(Ponto p)
+/* Draws normal vectors on a Bezier curve */
+void drawsNormals()
 {
-	Ponto arrow[2] = {Ponto(0,0),Ponto(0,0)};
-
-
-
-	return arrow;
-}
-
-void drawNormals(std::vector<Ponto> pontos_)
-{
-	primeiraDerivada = getDerivativeControllers(pontos);
-	if(pontos.size() > 2)
-		segundaDerivada = getDerivativeControllers(primeiraDerivada);
+	firstDerivative = getDerivativeControllers(controlPoints);
+	if(controlPoints.size() > 2)
+		secondDerivative = getDerivativeControllers(firstDerivative);
 	else
-		segundaDerivada.push_back(Ponto(0,0));
+		secondDerivative.push_back(Point(0,0));
 
-	Ponto pd(0,0);
-	Ponto sd(0,0);
-	Ponto orth(0,0);
+	Point pd(0,0);
+	Point sd(0,0);
+	Point orth(0,0);
 
-	for (double t = 0; t < 1; t += 1/aval) {
-		pd = deCasteljau(primeiraDerivada, t);
-		sd = deCasteljau(segundaDerivada, t);
+	int i = 0;
+
+	for (double t = 0.0; t <= eval; ++t) {
+		std::cout << "t = " << t << "  ";
+		pd = deCasteljau(firstDerivative, t/eval);
+		sd = deCasteljau(secondDerivative, t/eval);
 		orth = orthogonalization(pd, sd);
-		orth = Ponto((orth.x/norm(orth))*50, (orth.y/norm(orth))*50);	// Vetores com tamanho entre [0..1]
 
-		std::cout << "Ponto("<< pontos_[t*aval].x << "," << pontos_[t*aval].y << ")\n";
+		std::cout << "normal(" << norm(orth) << ")\n";
 
-		drawLine(pontos_[t*aval], Ponto(pontos_[t*aval].x + orth.x, pontos_[t*aval].y + orth.y));
+		drawsLine(pointsOnBezier[t], Point(pointsOnBezier[t].x + orth.x, pointsOnBezier[t].y + orth.y));
+		++i;
 	}
-	std::cout << "-----------\n";
-	//drawLine(pontos_.back(), Ponto(pontos_.back().x + orth.x, pontos_.back().y + orth.y), 0.5f, 0.0f, 0.5f);
+	std::cout << "\ni = " << i << "\n-----------\n";
 
 }
 
-Ponto deCasteljau(const std::vector<Ponto> pontos, double t)
+/* De Casteljau algorithm */
+Point deCasteljau(const std::vector<Point> pontos, double t)
 {
-	std::vector<Ponto> p = pontos;
+	std::vector<Point> p = pontos;
 
 	for (int n = 0; n < pontos.size()-1; ++n) {
 		for (int b = 0; b < pontos.size()-1 - n; ++b) {
@@ -162,71 +129,63 @@ Ponto deCasteljau(const std::vector<Ponto> pontos, double t)
 	return p[0];
 }
 
-void drawDeCasteljau(const std::vector<Ponto>& pontos)
+/* Draws a Bezier curve */
+void drawsBezierCurve(const std::vector<Point>& pontos)
 {
-	std::vector <Ponto> pontos_;
+	pointsOnBezier.clear();
 
 	glBegin(GL_LINE_STRIP);
 	glColor3f(1.0f, 1.0f, 0.0f);
-	for (double t = 0; t < 1; t += 1/aval) {
-		Ponto p = deCasteljau(pontos, t);
-		pontos_.push_back(p);
+	for (double t = 0.0; t <= eval; ++t) {
+		Point p = deCasteljau(pontos, t/eval);
+		pointsOnBezier.push_back(p);
 		glVertex2d(p.x,p.y);
 	}
 	glVertex2d(pontos.back().x, pontos.back().y);
 	glEnd();
-	drawNormals(pontos_);
 }
 
-/*
-Ponto deCasteljau(const std::vector<Ponto> pontos, int n, int i, float t)
-	if(n==0) return pontos[i];
-
-	Ponto p1 = deCasteljau(pontos, n-1, i, t);
-	Ponto p2 = deCasteljau(pontos, n-1, i+1, t);
-
-	return Ponto((1-t) * p1.x + t * p2.x, (1-t) * p1.y + t * p2.y);
-*/
-
-// Guarda os pontos de controle da derivada
-std::vector<Ponto> getDerivativeControllers(const std::vector<Ponto> u)
+/* Obtains the derivate's control points of a Bezier curve */
+std::vector<Point> getDerivativeControllers(const std::vector<Point> u)
 {
-	std::vector<Ponto> v;
+	std::vector<Point> v;
 	for (int i = 0; i < u.size()-1; ++i)
-		v.push_back(Ponto(u[i+1].x - u[i].x, u[i+1].y - u[i].y));
+		v.push_back(Point(u[i+1].x - u[i].x, u[i+1].y - u[i].y));
 	return v;
 }
 
-float scalarProduct(Ponto u, Ponto v)
+/* Computes scalar product */
+float scalarProduct(Point u, Point v)
 {
 	return (u.x * v.x + u.y * v.y);
 }
 
-// Norma de um vetor
-double norm(Ponto p)
+/* Computes vector's norm */
+double norm(Point p)
 {
 	return sqrt(scalarProduct(p,p));
 }
 
-// Norma para um conj de vetores
-std::vector<Ponto> vectorsNorm(std::vector<Ponto> ps)
+/* Orthogonalization of two vectors */
+Point orthogonalization(Point u, Point v)
 {
-	std::vector<Ponto> vectorsNorm_;
-	for(auto p : ps)
-		vectorsNorm_.push_back(Ponto(p.x/norm(p), p.y/norm(p)));
-	return vectorsNorm_;
-}
+	Point w(0,0);
 
-Ponto orthogonalization(Ponto u, Ponto v)
-{
-	Ponto w(0,0);
-
-	if(scalarProduct(u,u) == 0) return w;
+	if(u.x == w.x && u.y == w.y) return w;
 
 	w.x = v.x - (scalarProduct(u,v)/scalarProduct(u,u)) * u.x;
 	w.y = v.y - (scalarProduct(u,v)/scalarProduct(u,u)) * u.y;
 
 	return w;
+}
+
+/* Set how many evaluation will be done */
+void setEvaluation()
+{
+	do {
+		std::cout << "Enter number of evaluations:\n";
+		std::cin >> eval;
+	} while(eval==0);
 }
 
 void reshape(int w, int h)
@@ -248,6 +207,9 @@ void handleKeypress(unsigned char key, int x, int y)
         case 'b':
             bezier = !bezier;
             break;
+        case 'n':
+        	normal = !normal;
+        	break;
     }
     glutPostRedisplay();
 }
@@ -256,32 +218,30 @@ void handleMouseClick(int button, int state, int x, int y)
 {
     if(button == GLUT_LEFT_BUTTON)
         if (state == GLUT_DOWN) {
-            pontos.push_back(Ponto(x, y));
-            //std::cout << "(" << x << "," << y << ")\n";
+            controlPoints.push_back(Point(x, y));
         }
     glutPostRedisplay();
 }
 
 int main(int argc, char ** argv)
 {
-	std::cout << "Enter number of avaliations\n";
-	std::cin >> aval;
+	setEvaluation();
 
     glutInit(&argc, argv);
     glutInitWindowPosition(0,0); // upper left
     glutInitWindowSize(WINDOW_W, WINDOW_H);
     glutInitDisplayMode(GLUT_RGB | GLUT_SINGLE);
-    
+
     glutCreateWindow("PG-Proj1");
     glClearColor(0.0, 0.0, 0.0, 0.0);
     glMatrixMode(GL_MODELVIEW); // scene model matrix
     glLoadIdentity();
-    
+
     glutDisplayFunc(display);
     glutKeyboardFunc(handleKeypress);
     glutMouseFunc(handleMouseClick);
     glutReshapeFunc(reshape);
-    
+
     glutMainLoop();
     
     return 0;
