@@ -1,12 +1,13 @@
 /*
 ---------------------------------------------
-Controllers:
+How to use:
 
 -Mouse:
 	'left click': Creates control point
 -Keyboard:
-	'b': Draws bezier curve
-	'n': Draws normal vectors on a Bezier curve
+	'b': Show/Hide bezier curve
+	'n': Show/Hide normal vectors on a Bezier curve
+	'e': Show/Hide edges
 	'ESC': Exits program
 ---------------------------------------------
  */
