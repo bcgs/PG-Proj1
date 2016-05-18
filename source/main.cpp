@@ -27,13 +27,14 @@ std::vector <Point> firstDerivative;
 std::vector <Point> secondDerivative;
 bool bezier = false;
 bool normal = false;
+bool edges = true;
 float eval;
 
-void drawsPoint();
-void drawsLines(const std::vector<Point>& pontos, float r, float g, float b);
-void drawsLine(Point a, Point b);
-void drawsBezierCurve(const std::vector<Point>& pontos);
-void drawsNormals();
+void drawPoint();
+void drawLines(const std::vector<Point>& pontos, float r, float g, float b);
+void drawLine(Point a, Point b);
+void drawBezierCurve(const std::vector<Point>& pontos);
+void drawNormals();
 Point deCasteljau(const std::vector<Point> pontos, double t);
 Point orthogonalization(Point u, Point v);
 std::vector<Point> getDerivativeControllers(const std::vector<Point> u);
@@ -43,19 +44,19 @@ double norm(Point p);
 void display()
 {
 	glClear(GL_COLOR_BUFFER_BIT);
-	drawsPoint();
+	drawPoint();
 
 	if(controlPoints.size() > 1)
 	{
-		drawsLines(controlPoints, 0.0f, 1.0f, 1.0f);
-		if(bezier) drawsBezierCurve(controlPoints);
-		if(bezier && normal) drawsNormals();
+		if(edges) drawLines(controlPoints, 0.0f, 1.0f, 1.0f);
+		if(bezier) drawBezierCurve(controlPoints);
+		if(bezier && normal) drawNormals();
 	}
 	glFlush();
 }
 
 /* Draws a control point */
-void drawsPoint()
+void drawPoint()
 {
 	glPointSize(5.0f);
 	glBegin(GL_POINTS);
@@ -66,7 +67,7 @@ void drawsPoint()
 }
 
 /* Draws an array of lines */
-void drawsLines(const std::vector<Point>& pontos, float r, float g, float b)
+void drawLines(const std::vector<Point>& pontos, float r, float g, float b)
 {
 	glBegin(GL_LINE_STRIP);
 	glColor3f(r, g, b);
@@ -76,7 +77,7 @@ void drawsLines(const std::vector<Point>& pontos, float r, float g, float b)
 }
 
 /* Draws a single line */
-void drawsLine(Point a_, Point b_)
+void drawLine(Point a_, Point b_)
 {
 	glBegin(GL_LINE_STRIP);
 	glColor3f(0.5f, 0.0f, 0.5f);
@@ -86,7 +87,7 @@ void drawsLine(Point a_, Point b_)
 }
 
 /* Draws normal vectors on a Bezier curve */
-void drawsNormals()
+void drawNormals()
 {
 	firstDerivative = getDerivativeControllers(controlPoints);
 	if(controlPoints.size() > 2)
@@ -108,7 +109,7 @@ void drawsNormals()
 
 		std::cout << "normal(" << norm(orth) << ")\n";
 
-		drawsLine(pointsOnBezier[t], Point(pointsOnBezier[t].x + orth.x, pointsOnBezier[t].y + orth.y));
+		drawLine(pointsOnBezier[t], Point(pointsOnBezier[t].x + orth.x, pointsOnBezier[t].y + orth.y));
 		++i;
 	}
 	std::cout << "\ni = " << i << "\n-----------\n";
@@ -130,7 +131,7 @@ Point deCasteljau(const std::vector<Point> pontos, double t)
 }
 
 /* Draws a Bezier curve */
-void drawsBezierCurve(const std::vector<Point>& pontos)
+void drawBezierCurve(const std::vector<Point>& pontos)
 {
 	pointsOnBezier.clear();
 
@@ -209,6 +210,9 @@ void handleKeypress(unsigned char key, int x, int y)
             break;
         case 'n':
         	normal = !normal;
+        	break;
+        case 'e':
+        	edges = !edges;
         	break;
     }
     glutPostRedisplay();
